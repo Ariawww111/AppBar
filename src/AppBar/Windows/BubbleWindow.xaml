@@ -1,0 +1,65 @@
+<Window x:Class="AppBar.Windows.BubbleWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="应用栏入口"
+        Width="32"
+        Height="32"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        WindowStartupLocation="Manual"
+        SnapsToDevicePixels="True"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        MouseMove="Window_MouseMove"
+        MouseLeftButtonUp="Window_MouseLeftButtonUp"
+        MouseEnter="Window_MouseEnter"
+        MouseLeave="Window_MouseLeave"
+        SourceInitialized="Window_SourceInitialized">
+    <Window.ContextMenu>
+        <ContextMenu x:Name="LauncherMenu" Opened="LauncherMenu_Opened">
+            <MenuItem Header="添加应用" Click="AddAppMenuItem_Click" />
+            <MenuItem x:Name="StartupMenuItem"
+                      Header="开机启动"
+                      IsCheckable="True"
+                      Click="StartupMenuItem_Click" />
+            <Separator />
+            <MenuItem Header="退出应用栏" Click="ExitMenuItem_Click" />
+        </ContextMenu>
+    </Window.ContextMenu>
+    <Grid Background="Transparent">
+        <Border x:Name="BubbleShell"
+                Margin="2"
+                CornerRadius="14"
+                BorderThickness="0.75"
+                BorderBrush="#A8FFFFFF"
+                Background="#E8E8E5DE"
+                RenderTransformOrigin="0.5,0.5">
+            <Border.Effect>
+                <DropShadowEffect BlurRadius="8"
+                                  ShadowDepth="2"
+                                  Direction="270"
+                                  Opacity="0.18"
+                                  Color="#706C675F" />
+            </Border.Effect>
+            <Border.Style>
+                <Style TargetType="{x:Type Border}">
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="BorderBrush" Value="#B8FFFFFF" />
+                            <Setter Property="RenderTransform">
+                                <Setter.Value>
+                                    <ScaleTransform ScaleX="1.06" ScaleY="1.06" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+        </Border>
+    </Grid>
+</Window>
+

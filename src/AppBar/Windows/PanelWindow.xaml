@@ -1,0 +1,150 @@
+<Window x:Class="AppBar.Windows.PanelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:infra="clr-namespace:AppBar.Infrastructure"
+        Title="应用栏"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        AllowsTransparency="True"
+        Background="Transparent"
+        ShowInTaskbar="False"
+        Topmost="True"
+        WindowStartupLocation="Manual"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
+        AllowDrop="True"
+        Opacity="0"
+        KeyDown="Window_KeyDown"
+        DragEnter="Window_DragEnter"
+        DragOver="Window_DragOver"
+        DragLeave="Window_DragLeave"
+        Drop="Window_Drop"
+        MouseLeave="Window_MouseLeave">
+    <Border x:Name="GlassCard"
+            Margin="12"
+            CornerRadius="26"
+            BorderThickness="0"
+            Background="#FFF8F8F5">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="24"
+                              ShadowDepth="6"
+                              Direction="270"
+                              Opacity="0.12"
+                              Color="#52626770" />
+        </Border.Effect>
+        <Grid x:Name="PanelContent"
+              Margin="30,10,30,12"
+              TextOptions.TextFormattingMode="Display">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="PanelTranslate" Y="-10" />
+            </Grid.RenderTransform>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="22" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <Button Grid.Row="0"
+                    Width="22"
+                    Height="22"
+                    HorizontalAlignment="Right"
+                    Margin="0,-6,-5,0"
+                    ToolTip="添加应用"
+                    Style="{StaticResource GlassIconButtonStyle}"
+                    Click="AddButton_Click">
+                <Path Width="10"
+                      Height="10"
+                      Stretch="Uniform"
+                      Fill="#B7464744"
+                      Data="M 6,1 L 8,1 L 8,6 L 13,6 L 13,8 L 8,8 L 8,13 L 6,13 L 6,8 L 1,8 L 1,6 L 6,6 Z" />
+            </Button>
+
+            <ScrollViewer Grid.Row="1"
+                          x:Name="AppScroll"
+                          VerticalAlignment="Stretch"
+                          VerticalScrollBarVisibility="Auto"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalContentAlignment="Center"
+                          CanContentScroll="False">
+                <ItemsControl x:Name="AppsList"
+                              ItemsSource="{Binding}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <infra:CenteredUniformGrid Columns="5"
+                                                       HorizontalSpacing="12"
+                                                       VerticalSpacing="12" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Button Height="88"
+                                    Style="{StaticResource AppTileButtonStyle}"
+                                    Click="AppTile_Click"
+                                    PreviewMouseLeftButtonDown="AppTile_PreviewMouseLeftButtonDown"
+                                    PreviewMouseMove="AppTile_PreviewMouseMove"
+                                    ToolTip="{Binding ToolTipText}"
+                                    ToolTipService.InitialShowDelay="400">
+                                <Button.ContextMenu>
+                                    <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}"
+                                                 Opened="TileContextMenu_Opened"
+                                                 Closed="TileContextMenu_Closed">
+                                        <MenuItem Header="从应用栏移除"
+                                                  Click="RemoveMenuItem_Click" />
+                                    </ContextMenu>
+                                </Button.ContextMenu>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="42" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Width="34"
+                                          Height="34"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center">
+                                        <Border Width="34"
+                                                Height="34"
+                                                CornerRadius="9"
+                                                Background="{Binding FallbackBrush}">
+                                            <Border.Style>
+                                                <Style TargetType="{x:Type Border}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasIcon}" Value="False">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding FallbackText}"
+                                                       Foreground="White"
+                                                       FontFamily="Microsoft YaHei UI"
+                                                       FontSize="16"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                        <Image Width="34"
+                                               Height="34"
+                                               Source="{Binding Icon}"
+                                               Stretch="Uniform"
+                                               RenderOptions.BitmapScalingMode="HighQuality" />
+                                    </Grid>
+                                    <TextBlock Grid.Row="1"
+                                               Text="{Binding DisplayName}"
+                                               Margin="0,5,0,0"
+                                               Foreground="#E0313230"
+                                               FontFamily="Microsoft YaHei UI"
+                                               FontSize="11"
+                                               LineHeight="14"
+                                               TextAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               TextTrimming="None"
+                                               VerticalAlignment="Top" />
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</Window>
