@@ -42,6 +42,7 @@
     <Compile Include="Services\JsonStateStore.cs" />
     <Compile Include="Services\ShortcutResolver.cs" />
     <Compile Include="Services\StartupService.cs" />
+    <Compile Include="Services\StartupFolderShortcutStore.cs" />
     <Compile Include="Services\RegistryValueStore.cs" />
     <Compile Include="Services\WindowGeometry.cs" />
     <Compile Include="Utilities\OrderedList.cs" />

@@ -6,4 +6,7 @@ TestResults/
 *.suo
 .vs/
 .tmp/
+state-before-fix.json
+state-inspect*.txt
+state-restore-result.txt
 

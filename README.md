@@ -21,8 +21,11 @@
 ## 数据位置
 
 - 配置：`%LocalAppData%\AppBar\state.json`
+- 有效配置备份：`state.json.bak` 与 `state.json.last-good`
 - 图标缓存：`%LocalAppData%\AppBar\icons`
+- 启动诊断：`%LocalAppData%\AppBar\startup.log`
 - 写入配置时使用临时文件和替换操作；损坏的旧配置会被保留为 `state.json.corrupt-*.json`。
+- 主配置意外为空或损坏时，会自动从最近的有效备份恢复应用列表；未经用户确认的空列表不会覆盖已有应用。
 
 ## 构建与测试
 
@@ -38,6 +41,18 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build.ps1
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
+```
+
+从应用列表快照恢复配置：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\restore-state.ps1
+```
+
+检查实际用户目录中的配置与启动记录：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\inspect-state.ps1
 ```
 
 ## 技术结构

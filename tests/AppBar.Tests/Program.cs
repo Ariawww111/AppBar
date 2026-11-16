@@ -28,6 +28,9 @@ namespace AppBar.Tests
             Run("ordered list move preserves all items", TestOrderedListMove);
             Run("JSON state survives an atomic save and reload", TestStateRoundTrip);
             Run("corrupt JSON is preserved and reported", TestCorruptState);
+            Run("accidental empty state recovers from last good backup", TestEmptyStateRecovery);
+            Run("empty save cannot overwrite an existing app list", TestRejectsEmptyOverwrite);
+            Run("intentional empty state remains empty", TestIntentionalEmptyState);
             Run("desktop shortcut resolves its target", TestShortcutResolution);
             Run("missing applications fail without throwing", TestMissingLaunch);
             Run("an existing application can be launched", TestExistingLaunch);
@@ -167,6 +170,81 @@ namespace AppBar.Tests
             }
         }
 
+        private static void TestEmptyStateRecovery()
+        {
+            string directory = CreateTemporaryDirectory("recovery");
+            try
+            {
+                JsonStateStore store = new JsonStateStore(directory);
+                LauncherState state = CreateStateWithNotepad();
+                store.Save(state);
+
+                File.WriteAllText(
+                    store.StateFilePath,
+                    "{\"SchemaVersion\":2,\"BubbleX\":24,\"BubbleY\":24,"
+                    + "\"BubblePositionInitialized\":true,\"StartupConfigured\":true,"
+                    + "\"EmptyStateConfirmed\":false,\"Apps\":[]}",
+                    System.Text.Encoding.UTF8);
+
+                LauncherState recovered = store.Load();
+                AssertEqual(1, recovered.Apps.Count, "recovered app count");
+                AssertTrue(
+                    !string.IsNullOrWhiteSpace(store.LastLoadWarning),
+                    "recovery warning is exposed");
+                AssertTrue(
+                    File.Exists(store.StateFilePath + ".last-good"),
+                    "last good backup exists");
+            }
+            finally
+            {
+                TryDeleteDirectory(directory);
+            }
+        }
+
+        private static void TestRejectsEmptyOverwrite()
+        {
+            string directory = CreateTemporaryDirectory("reject-empty");
+            try
+            {
+                JsonStateStore store = new JsonStateStore(directory);
+                LauncherState state = CreateStateWithNotepad();
+                store.Save(state);
+
+                state.Apps.Clear();
+                state.EmptyStateConfirmed = false;
+                AssertThrows<InvalidOperationException>(
+                    delegate { store.Save(state); },
+                    "empty overwrite should be rejected");
+            }
+            finally
+            {
+                TryDeleteDirectory(directory);
+            }
+        }
+
+        private static void TestIntentionalEmptyState()
+        {
+            string directory = CreateTemporaryDirectory("intentional-empty");
+            try
+            {
+                JsonStateStore store = new JsonStateStore(directory);
+                LauncherState state = CreateStateWithNotepad();
+                store.Save(state);
+
+                state.Apps.Clear();
+                state.EmptyStateConfirmed = true;
+                store.Save(state);
+
+                LauncherState loaded = store.Load();
+                AssertEqual(0, loaded.Apps.Count, "confirmed empty state");
+                AssertTrue(loaded.EmptyStateConfirmed, "empty confirmation persists");
+            }
+            finally
+            {
+                TryDeleteDirectory(directory);
+            }
+        }
+
         private static void TestShortcutResolution()
         {
             string directory = CreateTemporaryDirectory("shortcut");
@@ -223,13 +301,16 @@ namespace AppBar.Tests
         private static void TestStartupToggle()
         {
             FakeRegistryValueStore registry = new FakeRegistryValueStore();
+            FakeStartupShortcutStore shortcut = new FakeStartupShortcutStore();
             string executable = Path.Combine(Path.GetTempPath(), "AppBar.Startup.Test.exe");
-            StartupService service = new StartupService(executable, registry);
+            StartupService service = new StartupService(executable, registry, shortcut);
             service.SetEnabled(true);
             AssertTrue(service.IsEnabled(), "startup enabled");
             AssertEqual("\"" + executable + "\"", registry.StoredValue, "startup command");
+            AssertEqual(executable, shortcut.ExecutablePath, "startup shortcut target");
             service.SetEnabled(false);
             AssertFalse(service.IsEnabled(), "startup disabled");
+            AssertTrue(shortcut.ExecutablePath == null, "startup shortcut removed");
         }
 
         private static void CreateShortcut(
@@ -301,6 +382,17 @@ namespace AppBar.Tests
             return directory;
         }
 
+        private static LauncherState CreateStateWithNotepad()
+        {
+            LauncherState state = LauncherState.CreateDefault();
+            state.Apps.Add(new AppShortcut
+            {
+                DisplayName = "Notepad",
+                LaunchPath = Path.Combine(Environment.SystemDirectory, "notepad.exe")
+            });
+            return state;
+        }
+
         private static void TryDeleteDirectory(string directory)
         {
             try
@@ -346,6 +438,22 @@ namespace AppBar.Tests
             AssertTrue(!condition, message);
         }
 
+        private static void AssertThrows<TException>(Action action, string message)
+            where TException : Exception
+        {
+            try
+            {
+                action();
+            }
+            catch (TException)
+            {
+                return;
+            }
+
+            throw new InvalidOperationException(
+                message + " (expected exception: " + typeof(TException).Name + ")");
+        }
+
         private static void AssertEqual<T>(T expected, T actual, string message)
         {
             if (!object.Equals(expected, actual))
@@ -372,6 +480,29 @@ namespace AppBar.Tests
             public void DeleteValue(string keyPath, string valueName)
             {
                 StoredValue = null;
+            }
+        }
+
+        private sealed class FakeStartupShortcutStore : IStartupShortcutStore
+        {
+            public string ExecutablePath { get; private set; }
+
+            public bool IsCurrent(string executablePath)
+            {
+                return string.Equals(
+                    ExecutablePath,
+                    executablePath,
+                    StringComparison.OrdinalIgnoreCase);
+            }
+
+            public void SetCurrent(string executablePath)
+            {
+                ExecutablePath = executablePath;
+            }
+
+            public void Remove()
+            {
+                ExecutablePath = null;
             }
         }
     }

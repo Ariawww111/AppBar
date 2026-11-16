@@ -7,11 +7,12 @@ namespace AppBar.Core.Models
     {
         public LauncherState()
         {
-            SchemaVersion = 1;
+            SchemaVersion = 2;
             BubbleX = 24;
             BubbleY = 24;
             BubblePositionInitialized = false;
             StartupConfigured = false;
+            EmptyStateConfirmed = false;
             Apps = new List<AppShortcut>();
         }
 
@@ -20,6 +21,7 @@ namespace AppBar.Core.Models
         public double BubbleY { get; set; }
         public bool BubblePositionInitialized { get; set; }
         public bool StartupConfigured { get; set; }
+        public bool EmptyStateConfirmed { get; set; }
         public List<AppShortcut> Apps { get; set; }
 
         public static LauncherState CreateDefault()
@@ -31,7 +33,11 @@ namespace AppBar.Core.Models
         {
             if (SchemaVersion <= 0)
             {
-                SchemaVersion = 1;
+                SchemaVersion = 2;
+            }
+            else if (SchemaVersion < 2)
+            {
+                SchemaVersion = 2;
             }
 
             if (Apps == null)
@@ -70,6 +76,10 @@ namespace AppBar.Core.Models
             }
 
             Apps = validApps;
+            if (Apps.Count > 0)
+            {
+                EmptyStateConfirmed = false;
+            }
         }
     }
 }

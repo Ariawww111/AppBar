@@ -27,6 +27,7 @@ namespace AppBar
         private readonly ScreenService _screenService;
         private readonly ObservableCollection<ShortcutItemViewModel> _items;
         private readonly LauncherState _state;
+        private readonly string _diagnosticFilePath;
         private BubbleWindow _bubble;
         private PanelWindow _panel;
         private string _lastSaveError;
@@ -38,6 +39,7 @@ namespace AppBar
             string dataDirectory = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "AppBar");
+            _diagnosticFilePath = Path.Combine(dataDirectory, "startup.log");
             _stateStore = new JsonStateStore(dataDirectory);
             _state = _stateStore.Load();
             _state.Normalize();
@@ -48,11 +50,15 @@ namespace AppBar
             _iconService = new IconService(dataDirectory);
             _screenService = new ScreenService();
             _items = new ObservableCollection<ShortcutItemViewModel>();
-
-            foreach (AppShortcut shortcut in _state.Apps)
-            {
-                _items.Add(new ShortcutItemViewModel(shortcut, _iconService));
-            }
+            RebuildItems();
+            WriteDiagnostic(
+                "state-loaded",
+                "state=" + _stateStore.StateFilePath
+                + "; apps=" + _state.Apps.Count
+                + "; items=" + _items.Count
+                + "; emptyConfirmed=" + _state.EmptyStateConfirmed
+                + "; warning=" + (_stateStore.LastLoadWarning ?? string.Empty)
+                + Environment.NewLine + _stateStore.LastLoadDiagnostic);
         }
 
         public void Start()
@@ -80,7 +86,11 @@ namespace AppBar
             }
 
             SaveState(false);
-
+            WriteDiagnostic(
+                "started",
+                "apps=" + _state.Apps.Count
+                + "; items=" + _items.Count
+                + "; saveError=" + (_lastSaveError ?? string.Empty));
         }
 
         public void TogglePanel()
@@ -106,6 +116,8 @@ namespace AppBar
             {
                 return;
             }
+
+            RestoreAppsFromDiskIfNecessary();
 
             IntPtr bubbleHandle = ScreenService.GetHandle(_bubble);
             ScreenSnapshot screen = _screenService.GetForWindow(bubbleHandle);
@@ -311,6 +323,7 @@ namespace AppBar
 
             if (added > 0)
             {
+                _state.EmptyStateConfirmed = false;
                 SaveState(false);
             }
 
@@ -349,6 +362,7 @@ namespace AppBar
                 _state.Apps.Add(item.Shortcut);
             }
 
+            _state.EmptyStateConfirmed = _state.Apps.Count == 0;
             SaveState(false);
         }
 
@@ -373,6 +387,7 @@ namespace AppBar
             }
 
             _items.Remove(item);
+            _state.EmptyStateConfirmed = _items.Count == 0;
             PersistShortcutOrder();
         }
 
@@ -471,10 +486,57 @@ namespace AppBar
             _state.BubblePositionInitialized = true;
         }
 
+        private void RestoreAppsFromDiskIfNecessary()
+        {
+            if (_items.Count > 0 ||
+                _state.Apps.Count > 0 ||
+                _state.EmptyStateConfirmed)
+            {
+                return;
+            }
+
+            LauncherState reloaded = _stateStore.Load();
+            if (reloaded.Apps.Count == 0)
+            {
+                return;
+            }
+
+            _state.Apps = reloaded.Apps;
+            _state.EmptyStateConfirmed = false;
+            RebuildItems();
+            SaveState(false);
+            WriteDiagnostic(
+                "state-restored-on-open",
+                "apps=" + _state.Apps.Count
+                + "; items=" + _items.Count
+                + "; warning=" + (_stateStore.LastLoadWarning ?? string.Empty));
+        }
+
+        private void RebuildItems()
+        {
+            _items.Clear();
+            foreach (AppShortcut shortcut in _state.Apps)
+            {
+                _items.Add(new ShortcutItemViewModel(shortcut, _iconService));
+            }
+        }
+
         private void InitializeStartupSetting()
         {
             if (_state.StartupConfigured)
             {
+                try
+                {
+                    if (_startupService.IsEnabled())
+                    {
+                        _startupService.SetEnabled(true);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ShowError("无法更新开机启动快捷方式：" + ex.Message);
+                }
+
                 return;
             }
 
@@ -549,8 +611,31 @@ namespace AppBar
                 if (showFailure || !string.Equals(_lastSaveError, ex.Message, StringComparison.Ordinal))
                 {
                     _lastSaveError = ex.Message;
+                    WriteDiagnostic("state-save-failed", ex.ToString());
                     ShowError("无法保存应用栏设置：" + ex.Message);
                 }
+            }
+        }
+
+        private void WriteDiagnostic(string stage, string detail)
+        {
+            try
+            {
+                string directory = Path.GetDirectoryName(_diagnosticFilePath);
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                File.AppendAllText(
+                    _diagnosticFilePath,
+                    DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff")
+                    + " [" + stage + "] "
+                    + detail
+                    + Environment.NewLine);
+            }
+            catch (Exception)
+            {
             }
         }
 
