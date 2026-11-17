@@ -93,7 +93,7 @@ namespace AppBar.Windows
             }
             else
             {
-                _controller.TogglePanel();
+                _controller.OpenPanel();
             }
 
             e.Handled = true;
@@ -102,6 +102,7 @@ namespace AppBar.Windows
         private void Window_MouseEnter(object sender, MouseEventArgs e)
         {
             _controller.CancelAutoClose();
+            _controller.OpenPanel();
         }
 
         private void Window_MouseLeave(object sender, MouseEventArgs e)

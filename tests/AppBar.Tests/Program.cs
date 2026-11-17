@@ -32,6 +32,7 @@ namespace AppBar.Tests
             Run("empty save cannot overwrite an existing app list", TestRejectsEmptyOverwrite);
             Run("intentional empty state remains empty", TestIntentionalEmptyState);
             Run("desktop shortcut resolves its target", TestShortcutResolution);
+            Run("shortcut target falls back to its existing working directory", TestRedirectedShortcutTarget);
             Run("missing applications fail without throwing", TestMissingLaunch);
             Run("an existing application can be launched", TestExistingLaunch);
             Run("startup registration can be enabled and disabled", TestStartupToggle);
@@ -264,6 +265,39 @@ namespace AppBar.Tests
                         StringComparison.OrdinalIgnoreCase),
                     "resolved target");
                 AssertEqual("--test-argument", result.Shortcut.Arguments, "arguments");
+            }
+            finally
+            {
+                TryDeleteDirectory(directory);
+            }
+        }
+
+        private static void TestRedirectedShortcutTarget()
+        {
+            string directory = CreateTemporaryDirectory("redirected-shortcut");
+            try
+            {
+                string workingDirectory = Path.Combine(directory, "Program Files", "Sample App");
+                string executable = Path.Combine(workingDirectory, "SampleApp.exe");
+                Directory.CreateDirectory(workingDirectory);
+                File.WriteAllText(executable, "test executable placeholder");
+
+                string redirectedTarget =
+                    Path.Combine(directory, "Program Files (x86)", "Sample App", "SampleApp.exe");
+                string linkPath = Path.Combine(directory, "Sample App.lnk");
+                CreateShortcut(linkPath, redirectedTarget, workingDirectory, string.Empty);
+
+                ShortcutResolutionResult result =
+                    new ShortcutResolver().Resolve(linkPath);
+                AssertTrue(result.Success, "redirected shortcut resolution succeeds");
+                AssertEqual(
+                    ShortcutResolver.NormalizeTargetPath(executable),
+                    ShortcutResolver.NormalizeTargetPath(result.Shortcut.LaunchPath),
+                    "working-directory fallback target");
+                AssertEqual(
+                    workingDirectory,
+                    result.Shortcut.WorkingDirectory,
+                    "working-directory fallback keeps working directory");
             }
             finally
             {

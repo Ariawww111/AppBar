@@ -124,24 +124,23 @@ namespace AppBar.Core.Services
                     linkType.InvokeMember("WorkingDirectory", BindingFlags.GetProperty, null, link, null));
 
                 target = Environment.ExpandEnvironmentVariables((target ?? string.Empty).Trim());
-                if (string.IsNullOrWhiteSpace(target) ||
-                    !string.Equals(Path.GetExtension(target), ".exe", StringComparison.OrdinalIgnoreCase) ||
-                    !File.Exists(target))
+                string working = Environment.ExpandEnvironmentVariables((workingDirectory ?? string.Empty).Trim());
+                string resolvedTarget = ResolveExistingExecutable(target, working);
+                if (string.IsNullOrWhiteSpace(resolvedTarget))
                 {
                     return ShortcutResolutionResult.Failed(
                         "该快捷方式没有可用的桌面程序目标。首版不支持商店应用或脚本。");
                 }
 
-                string working = Environment.ExpandEnvironmentVariables((workingDirectory ?? string.Empty).Trim());
                 if (string.IsNullOrWhiteSpace(working) || !Directory.Exists(working))
                 {
-                    working = Path.GetDirectoryName(target);
+                    working = Path.GetDirectoryName(resolvedTarget);
                 }
 
                 return ShortcutResolutionResult.Succeeded(new AppShortcut
                 {
                     DisplayName = Path.GetFileNameWithoutExtension(path),
-                    LaunchPath = Path.GetFullPath(target),
+                    LaunchPath = Path.GetFullPath(resolvedTarget),
                     Arguments = arguments ?? string.Empty,
                     WorkingDirectory = working,
                     SourceShortcutPath = path
@@ -156,6 +155,34 @@ namespace AppBar.Core.Services
                 ReleaseComObject(link);
                 ReleaseComObject(shell);
             }
+        }
+
+        private static string ResolveExistingExecutable(string target, string workingDirectory)
+        {
+            if (IsExistingExecutable(target))
+            {
+                return target;
+            }
+
+            if (!string.IsNullOrWhiteSpace(target) &&
+                !string.IsNullOrWhiteSpace(workingDirectory) &&
+                Directory.Exists(workingDirectory))
+            {
+                string candidate = Path.Combine(workingDirectory, Path.GetFileName(target));
+                if (IsExistingExecutable(candidate))
+                {
+                    return candidate;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static bool IsExistingExecutable(string path)
+        {
+            return !string.IsNullOrWhiteSpace(path) &&
+                string.Equals(Path.GetExtension(path), ".exe", StringComparison.OrdinalIgnoreCase) &&
+                File.Exists(path);
         }
 
         private static void ReleaseComObject(object value)

@@ -93,23 +93,6 @@ namespace AppBar
                 + "; saveError=" + (_lastSaveError ?? string.Empty));
         }
 
-        public void TogglePanel()
-        {
-            if (_panel == null)
-            {
-                return;
-            }
-
-            if (_panel.IsOpen)
-            {
-                _panel.CloseAnimated();
-            }
-            else
-            {
-                OpenPanel();
-            }
-        }
-
         public void OpenPanel()
         {
             if (_panel == null || _panel.IsOpen || _bubble == null)
